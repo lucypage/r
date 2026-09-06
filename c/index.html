@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opening…</title>
+
+<!-- NO-JAVASCRIPT REDIRECT.
+     3 seconds, not 0. The <noscript> pixel below needs time to fire before the
+     browser navigates away, and a 0-second refresh can beat it. Anyone with
+     JavaScript is redirected at ~120ms by the script at the bottom and never
+     reaches this. Do not shorten it. -->
+<meta http-equiv="refresh" content="3;url=https://drive.google.com/file/d/17Bz22i88T7cd80USQtlKSj5K2z6KqrEI/view">
+
+<style>
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;text-align:center;
+       font-family:'Open Sans',system-ui,Arial,sans-serif;color:#333;
+       padding:24px;line-height:1.6}
+  .msg{max-width:22rem}
+  a{color:#0077b6}
+  .sp{width:26px;height:26px;margin:0 auto 14px;border:3px solid #dde;
+      border-top-color:#0077b6;border-radius:50%;animation:s .8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.sp{animation:none}}
+  /* The logging pixel. Apps Script cannot return an image, so this request
+     always "fails" as an image -- which is fine, the GET still reaches the
+     server and logs. Sized and hidden so the broken-image glyph never shows. */
+  .px{position:absolute;width:1px;height:1px;opacity:0;border:0}
+</style>
+</head>
+<body>
+<div class="msg">
+  <div class="sp" id="sp"></div>
+  <p id="status">Opening the information sheet…</p>
+  <p><a href="https://drive.google.com/file/d/17Bz22i88T7cd80USQtlKSj5K2z6KqrEI/view">Construction site pollution</a></p>
+</div>
+
+<noscript>
+  <!-- Fires only when JavaScript is unavailable. Logs the scan ANONYMOUSLY:
+       a static page cannot read ?rid= into this src without JavaScript, so
+       these rows have no respondent attached. via=pixel marks them so they are
+       never mistaken for attributed scans and can be counted separately to
+       size the gap. -->
+  <img class="px" alt=""
+       src="https://script.google.com/macros/s/AKfycbzjQcJuwJrksB0B855UkJIsBiJBiX5035HozoXdxx2quQJF0YjDVIHosbrHVCE2AP61vg/exec?record_type=rights_scan&amp;sheet_key=c&amp;via=pixel">
+</noscript>
+
+<script>
+(function () {
+  var ENDPOINT = "https://script.google.com/macros/s/AKfycbzjQcJuwJrksB0B855UkJIsBiJBiX5035HozoXdxx2quQJF0YjDVIHosbrHVCE2AP61vg/exec";
+  var DEST     = "https://drive.google.com/file/d/17Bz22i88T7cd80USQtlKSj5K2z6KqrEI/view";
+  var KEY      = "c";
+  var SHEET    = "construction";
+
+  // Normalised exactly as the MLA form normalises its rid, and for the same
+  // reason: a code arriving with a trailing space, or lowercased off a printed
+  // slip, must resolve to the same respondent. If the two ever disagree, one
+  // person appears as two.
+  var rid = (new URLSearchParams(location.search).get('rid') || '')
+              .trim().toUpperCase();
+
+  // THE SAME PARSE THE FORM USES, deliberately duplicated rather than
+  // reinvented. arm is the WORD, not the letter, because that is what lands in
+  // the arm column of Submissions and Visits -- writing 'L' here and 'long'
+  // there would split one condition across two labels.
+  //
+  // A rid that does not match the shape is recorded as bad_code, not guessed
+  // at. The prefix now carries the treatment, so a truncated or hand-typed
+  // code has no recoverable condition and must be findable and excludable.
+  var CODE_RE = /^([PBL])([A-Z]{4})$/;
+  var ARM_BY_LETTER = { P: 'prefilled', B: 'blank', L: 'long' };
+  var m = CODE_RE.exec(rid);
+  var arm, armSource, codeBase;
+  if (m) {
+    arm = ARM_BY_LETTER[m[1]]; armSource = 'code_prefix'; codeBase = m[2];
+  } else if (rid) {
+    arm = ''; armSource = 'bad_code'; codeBase = '';
+  } else {
+    arm = ''; armSource = 'no_rid'; codeBase = '';
+  }
+
+  var payload = {
+    record_type:  'rights_scan',
+    via:          'beacon',
+    // FULL 5-character code, matching qualtrics_id in Submissions and Visits.
+    // code_base carries the 4-letter value Qualtrics holds. Do not swap these:
+    // an earlier draft put the 4-letter code in qualtrics_id, which would have
+    // made the same column mean different things in different tabs.
+    qualtrics_id: rid,
+    arm:          arm,
+    arm_source:   armSource,
+    arm_p:        '',
+    arm_algo:     'code-prefix-v2',
+    code_base:    codeBase,
+    sheet_key:    KEY,
+    sheet:        SHEET,
+    referrer:     document.referrer || '',
+    user_agent:   navigator.userAgent || '',
+    screen_width: window.innerWidth || '',
+    scanned_at:   new Date().toISOString()
+  };
+
+  var body = JSON.stringify(payload);
+  var sent = false;
+  // text/plain keeps this a CORS-"simple" request so there is no preflight.
+  // Apps Script cannot answer a preflight OPTIONS, so declaring
+  // application/json would make every log fail while looking correct in the
+  // code. The Apps Script JSON.parses the body regardless of declared type.
+  try {
+    sent = !!(navigator.sendBeacon &&
+              navigator.sendBeacon(ENDPOINT,
+                new Blob([body], { type: 'text/plain' })));
+  } catch (e) {}
+  if (!sent) {
+    // keepalive is the point of the fallback: like sendBeacon it lets the
+    // request outlive the page. Without it the navigation below cancels it.
+    try {
+      fetch(ENDPOINT, { method:'POST', body:body,
+                        keepalive:true, mode:'no-cors' });
+    } catch (e) {}
+  }
+
+  // ~120ms, comfortably under what anyone notices after a camera scan.
+  // sendBeacon is specified to survive navigation but older Android WebViews
+  // are unreliable about it. location.replace keeps this page out of history,
+  // so Back does not bounce the respondent through here and double-count.
+  setTimeout(function () { location.replace(DEST); }, 120);
+})();
+</script>
+</body>
+</html>
